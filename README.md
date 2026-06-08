@@ -1,7 +1,7 @@
 # Contribution 1: Add length/count parameter to dps command
 
 **Contribution Number:** 1  
-**Student:** DJ Wise Ronin  
+**Student:** DeAngelo Jackson-Adams  
 **Issue:** [pwndbg/pwndbg Issue Catalog: "The dps command does not have a parameter that sets the length"](https://github.com/pwndbg/pwndbg)  
 **Status:** Phase III Complete (Implementation & Testing Verified)  
 
