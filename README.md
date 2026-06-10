@@ -67,6 +67,7 @@ cd /home/ronin/Projects/pwndbg
 
 ### Reproduction Evidence
 
+- **Working Branch:** [feature/dps-length-parameter](https://github.com/dj-wise-ronin/pwndbg/tree/feature/dps-length-parameter)
 - **My findings:** The `dds` argument parser in `pwndbg/commands/windbg.py` was defined as:
   ```python
   parser = argparse.ArgumentParser(description="Dump pointers and symbols at the specified address.")
@@ -139,7 +140,7 @@ Run tests:
 
 ## Pull Request
 
-*(To be submitted)*
+- **Pull Request URL:** [pwndbg/pwndbg PR #3961](https://github.com/pwndbg/pwndbg/pull/3961)
 
 ---
 
