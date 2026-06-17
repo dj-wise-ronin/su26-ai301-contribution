@@ -126,21 +126,42 @@ Run tests:
 2. Ran `dps $sp 3`: Confirmed it prints exactly 3 lines.
 3. Pressed Enter to repeat: Verified it continued dumping subsequent stack pointers correctly.
 
+### Testing Approaches & Validation Steps Taken
+
+- **Fix Verification**: Validated that the `dds` command and its aliases successfully accept a second positional parameter without throwing an `argparse.ArgumentError` for unrecognized arguments.
+- **Repeat Behavior Validation**: Hitting Enter (empty command) successfully triggers GDB's repeat behavior, which in turn calls `telescope()` with the same `count` parameter and correctly advances the pointer display offset.
+- **Cross-Debugger Safety**: The test suite covers both GDB and LLDB environments. Because LLDB does not support native `pi` Python command mocks for `check_repeated` logic, the repeat test cases are dynamically guarded using `is_gdb = "GDB" in type(ctrl).__name__` checks.
+
 ---
 
 ## Implementation Notes
 
-### Code Changes
+### Work Completed
 
-- **Files modified:**
-  - [pwndbg/commands/windbg.py](file:///home/ronin/Projects/pwndbg/pwndbg/commands/windbg.py)
-  - [tests/library/dbg/tests/test_windbg.py](file:///home/ronin/Projects/pwndbg/tests/library/dbg/tests/test_windbg.py)
+I have implemented the code changes to add an optional `count` parameter to `dds` and its aliases (`dps`, `dqs`, `kd`).
+
+- **Parser Extension**: Registered an optional `count` argument using `pwndbg.commands.AddressExpr` inside `dds_parser`.
+- **Command Forwarding**: Updated the `dds` command implementation to receive this new positional parameter and cast it to an integer before forwarding to `pwndbg.commands.telescope.telescope`.
+- **Documentation Parity**: Recompiled auto-generated markdown documentation for `dds` to prevent upstream repository dev docs checks from failing.
+
+### Challenges Faced & Resolutions
+
+- **Documentation compilation constraints**: The upstream CI checks validate that command help matches the auto-generated documentation. Any change to command parsers requires running the documentation generator. I resolved this by running `./scripts/generate-docs.sh` locally and committing the auto-generated changes.
+- **LLDB Python command integration limitations**: The integration tests run on both GDB and LLDB. Executing Python code directly via command-line injection (`pi`) is GDB-specific and threw errors in LLDB mock tests. I resolved this by checking the debugger controller class type and skipping python-mocking logic when running under LLDB.
 
 ---
 
-## Pull Request
+## Code Changes
 
-- **Pull Request URL:** [pwndbg/pwndbg PR #3961](https://github.com/pwndbg/pwndbg/pull/3961)
+- **Active Development Branch**: [feature/dps-length-parameter](https://github.com/dj-wise-ronin/pwndbg/tree/feature/dps-length-parameter)
+- **Pull Request URL**: [pwndbg/pwndbg PR #3961](https://github.com/pwndbg/pwndbg/pull/3961)
+
+### Meaningful Commits
+
+- **eaed8ae43**: `feat(windbg): add optional count/length parameter to dds/dps/dqs/kd`
+- **202b6ef35**: `docs(windbg): update dds/dps auto-generated documentation`
+- **8da7f2e03**: `test(windbg): add regression test for dds repeat/Enter behavior`
+- **e6f0193e5**: `test(windbg): only run GDB repeat test under GDB`
 
 ---
 
