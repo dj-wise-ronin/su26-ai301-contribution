@@ -158,11 +158,11 @@ I have implemented the code changes to add an optional `count` parameter to `dds
 
 ### Meaningful Commits
 
-- **eaed8ae43**: `feat(windbg): add optional count/length parameter to dds/dps/dqs/kd`
-- **202b6ef35**: `docs(windbg): update dds/dps auto-generated documentation`
-- **8da7f2e03**: `test(windbg): add regression test for dds repeat/Enter behavior`
-- **e6f0193e5**: `test(windbg): only run GDB repeat test under GDB`
-- **0e1eddf4d**: `refactor(windbg): apply maintainer review suggestions for type annotations, parser, and GDB check`
+- **19d2b160f**: `feat(windbg): add optional count/length parameter to dds/dps/dqs/kd`
+- **2a3e4b084**: `docs(windbg): update dds/dps auto-generated documentation`
+- **312ff9c27**: `test(windbg): add regression test for dds repeat/Enter behavior`
+- **40ea6a532**: `test(windbg): only run GDB repeat test under GDB`
+- **50d976e63**: `refactor(windbg): apply maintainer review suggestions for type annotations, parser, and GDB check`
 
 ---
 
