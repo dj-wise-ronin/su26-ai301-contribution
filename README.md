@@ -3,7 +3,9 @@
 **Contribution Number:** 1  
 **Student:** DeAngelo Jackson-Adams  
 **Issue:** [pwndbg/pwndbg Issue Catalog: "The dps command does not have a parameter that sets the length"](https://github.com/pwndbg/pwndbg)  
-**Status:** Phase III Complete (Implementation & Testing Verified)  
+**Status:** ✅ **Phase IV Complete — PR Merged** 🚀  
+**Issue Link:** [pwndbg/pwndbg#2965](https://github.com/pwndbg/pwndbg/issues/2965)  
+**PR Link:** [pwndbg/pwndbg#3961](https://github.com/pwndbg/pwndbg/pull/3961)  
 
 ---
 
@@ -163,6 +165,24 @@ I have implemented the code changes to add an optional `count` parameter to `dds
 - **312ff9c27**: `test(windbg): add regression test for dds repeat/Enter behavior`
 - **40ea6a532**: `test(windbg): only run GDB repeat test under GDB`
 - **50d976e63**: `refactor(windbg): apply maintainer review suggestions for type annotations, parser, and GDB check`
+
+---
+
+## Phase IV: Submit & Iterate (Week 5)
+
+### Pull Request
+
+*   **PR Link:** [pwndbg/pwndbg PR #3961](https://github.com/pwndbg/pwndbg/pull/3961)
+*   **PR Title:** `feat(windbg): add optional count/length parameter to dds/dps/dqs/kd`
+*   **Status:** ✅ **Merged** into upstream `dev` branch
+
+### Maintainer Feedback & Iteration
+
+*   **Reviewers:** `@k4lizen`, `@disconnect3d` (maintainer)
+*   **Changes Requested:**
+    *   Use type hints (`int | None`) in the command function definitions.
+    *   Guard the GDB-specific repeat/Enter test so it doesn't break LLDB test runs.
+*   **Resolution:** Pushed follow-up commit `50d976e63` applying all maintainer suggestions — type annotations, parser restructuring, and GDB guard. PR was approved and merged.
 
 ---
 
