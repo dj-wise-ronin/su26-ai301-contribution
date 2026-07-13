@@ -198,12 +198,95 @@ I have implemented the code changes to add an optional `count` parameter to `dds
 
 # Contribution 2 (Cycle 2) — OSSF `cve-bin-tool`
 
-## Selected Issue: `test: improve performance on our slowest tests` (#4321)
+**Contribution Number:** 2  
+**Student:** DeAngelo Jackson-Adams  
+**Issue:** [ossf/cve-bin-tool Issue #4321: "test: improve performance on our slowest tests"](https://github.com/ossf/cve-bin-tool/issues/4321)  
+**Status:** Completed / Pull Request Opened for Review  
+**Issue Link:** [ossf/cve-bin-tool#4321](https://github.com/ossf/cve-bin-tool/issues/4321)  
+**PR Link:** [ossf/cve-bin-tool#5834](https://github.com/ossf/cve-bin-tool/pull/5834)  
 
-- **Repository**: [ossf/cve-bin-tool](https://github.com/ossf/cve-bin-tool)
-- **Organization**: Open Source Security Foundation (OSSF)
-- **Target Issue**: [Issue #4321: test: improve performance on our slowest tests](https://github.com/ossf/cve-bin-tool/issues/4321)
-- **Status**: Completed / Pull Request Opened for Review
+---
+
+## Why I Chose This Issue
+
+I selected this issue because software test suite performance directly impacts developer experience and code quality. In the `cve-bin-tool` repository, the language scanner tests took extremely long to execute, often leading developers and CI pipelines to skip them during local validation runs to avoid the massive runtime bottleneck. By optimizing these slow test paths, we can encourage more frequent local testing, prevent breaking changes from being pushed upstream, and improve overall pipeline efficiency.
+
+---
+
+## Understanding the Issue
+
+### Problem Description
+
+The language scanner test suite (`TestLanguageScanner`) parses packages and dependencies from mock lockfiles under `test/language_data/` (such as Rust's `Cargo.lock`, Ruby's `Gemfile.lock`, R's `renv.lock`, and Go's `go.mod`) to verify parser extraction logic. 
+
+However, these mock lockfiles contained large production datasets with hundreds of transitive dependencies. The scanner parser triggers deep database query lookups against the local SQLite database for every package listed in the lockfiles. Because the test assertions only check a small subset of target packages, querying the database for hundreds of unused dependencies causes thousands of slow, redundant lookup operations that bloat test runtimes.
+
+### Expected Behavior
+
+Mock lockfiles should be minimal, containing only the specific set of target packages validated by the test suite assertions. This verifies the parser's extraction and verification logic while avoiding expensive database lookup queries on extraneous packages.
+
+### Current Behavior
+
+The mock lockfiles are bloated with unasserted dependencies:
+- `Cargo.lock` has 279 packages while only 25 are asserted.
+- `Gemfile.lock` has 218 gems while only 50 are asserted.
+- `renv.lock` has 106 packages while only 17 are asserted.
+- `go.mod` has 60 packages while only 12 are asserted.
+
+As a result, running `pytest` with `LONG_TESTS=1` to enable language scanners takes over 20 minutes to complete.
+
+### Affected Components
+
+- `test/language_data/Cargo.lock`
+- `test/language_data/Gemfile.lock`
+- `test/language_data/renv.lock`
+- `test/language_data/go.mod`
+- `test/test_language_scanner.py`
+
+---
+
+## Reproduction Process
+
+### Environment Setup
+
+Set up a local clone of the repository, configure the virtual environment, and download the CVE data feeds to construct the local database:
+```bash
+git clone https://github.com/ossf/cve-bin-tool.git
+cd cve-bin-tool
+uv venv
+source .venv/bin/activate
+uv pip install -e .[test]
+```
+
+### Steps to Reproduce
+
+Run the language scanner test suite with the long test suite flag enabled:
+```bash
+LONG_TESTS=1 uv run pytest test/test_language_scanner.py
+```
+
+### Reproduction Evidence
+
+The unoptimized test suite run exceeds 20 minutes on local developer machines, or forces developers to run tests without `LONG_TESTS=1`, skipping 11 out of 16 critical parser test cases.
+
+---
+
+## Solution Approach
+
+### Analysis
+
+An analysis of `test_language_scanner.py` showed that only a specific subset of packages (defined by `RUST_PRODUCTS`, `RUBY_PRODUCTS`, `R_PRODUCTS`, and `GO_PRODUCTS`) are checked in the test assertions. The other hundreds of transitive dependencies specified in the lockfiles are parsed but ignored, wasting time on database queries.
+
+### Proposed Solution
+
+Following the maintainer recommendation in #4321, I trimmed down these mock lockfiles to only include the packages that are explicitly asserted in `test_language_scanner.py`. This ensures full test coverage of our parsers without the database lookup overhead on unused packages.
+
+### Implementation Plan
+
+1. Analyze `test_language_scanner.py` to compile lists of asserted products for each lockfile parser.
+2. Write python filtering scripts to parse the JSON (`renv.lock`), TOML (`Cargo.lock`), Bundler spec format (`Gemfile.lock`), and go.mod formats, stripping any dependency block that doesn't match the asserted products list.
+3. Validate the filtered files against the test suite to ensure the parser detects the target packages correctly and all tests pass.
+4. Measure performance improvements to verify a significant speedup.
 
 ---
 
