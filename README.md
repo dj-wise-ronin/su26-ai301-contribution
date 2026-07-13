@@ -203,7 +203,7 @@ I have implemented the code changes to add an optional `count` parameter to `dds
 - **Repository**: [ossf/cve-bin-tool](https://github.com/ossf/cve-bin-tool)
 - **Organization**: Open Source Security Foundation (OSSF)
 - **Target Issue**: [Issue #4321: test: improve performance on our slowest tests](https://github.com/ossf/cve-bin-tool/issues/4321)
-- **Status**: Completed / Draft Pull Request Opened 🟢
+- **Status**: Completed / Pull Request Opened for Review
 
 ---
 
@@ -220,26 +220,26 @@ I have implemented the code changes to add an optional `count` parameter to `dds
 
 ## Technical Accomplishments & Optimization Metrics
 
-By surgically parsing and reducing the mock dataset files under `test/language_data/` down to their asserted product specifications, we eliminated thousands of redundant and slow CVE SQLite database queries.
+I optimized the test runner performance by cleaning up the dummy lockfiles in `test/language_data/`. Trimming these mock files to include only the packages explicitly asserted in the test code significantly reduced database lookup overhead and resolved the slow test execution times.
 
-- **`Cargo.lock` (Rust):** Filtered from **279 packages** down to **24 packages**.
-- **`Gemfile.lock` (Ruby):** Filtered from **218 gems** down to **47 gems**.
-- **`renv.lock` (R):** Filtered from **106 packages** down to **17 packages**.
-- **`go.mod` (Go):** Filtered from **60 requirements** down to **12 packages**.
+- **`Cargo.lock` (Rust):** Reduced from 279 packages down to 24 packages.
+- **`Gemfile.lock` (Ruby):** Reduced from 218 gems down to 47 gems.
+- **`renv.lock` (R):** Reduced from 106 packages down to 17 packages.
+- **`go.mod` (Go):** Reduced from 60 requirements down to 12 packages.
 
 ### Performance Benchmarks
 
 | Metric | Unoptimized Baseline (Original) | Optimized Run (Our Changes) | Performance Gain |
 | :--- | :--- | :--- | :--- |
-| **Active Tests** | **5 / 16** (11 tests skipped) | **16 / 16** (All tests enabled) | **+11 additional tests enabled!** |
-| **Total Duration** | **16m 19s** | **9m 20s** | 🚀 **Over 2x speedup** (with full suite!) |
-| **Status** | Green (Partial) | **100% PASSING (Green) 🟢** | **Pristine Quality & Coverage** |
+| **Active Tests** | 5 / 16 (11 tests skipped) | 16 / 16 (All tests enabled) | Running all tests under LONG_TESTS |
+| **Total Duration** | 16m 19s (with 11 skips) | 9m 20s (all tests running) | Over 2x speedup on full suite execution |
+| **Status** | Passing (Partial) | 100% Passing (All 16 tests) | Full coverage with stable runs |
 
 ---
 
 ## Learnings & Reflections
 
 ### Technical Skills Gained
-- Gained deep familiarity with different multi-language dependency lockfile specifications (Bundler `Gemfile.lock`, Cargo `Cargo.lock`, R `renv.lock`, and Golang `go.mod`).
-- Learned how to optimize test performance by targeting dummy datasets rather than modifying production parsing logic.
-- Mastered managing upstream GitHub CLI default configurations and setting repository defaults.
+- Gained familiarity with multi-language dependency lockfile structures (Bundler `Gemfile.lock`, Cargo `Cargo.lock`, R `renv.lock`, and Golang `go.mod`).
+- Learned how to optimize test runner performance by tailoring mock datasets instead of modifying core engine logic.
+- Mastered managing git remote configurations and setting default repositories inside the GitHub CLI.
