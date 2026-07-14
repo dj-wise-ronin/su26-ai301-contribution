@@ -396,3 +396,180 @@ I optimized the test runner performance by cleaning up the dummy lockfiles in `t
 - Used AI to analyze long-running test suites and pinpoint SQLite database queries as the core performance bottleneck.
 - Leveraged AI to write filtering scripts to programmatically isolate target packages in large lockfiles, reducing `Cargo.lock` by 91% and `Gemfile.lock` by 78%.
 - Ensured strict code quality by manually verifying all 16 language scanner tests locally under `LONG_TESTS=1` before pushing.
+
+---
+
+# Contribution 3 (Cycle 3) — pwndbg
+
+**Contribution Number:** 3  
+**Student:** DeAngelo Jackson-Adams  
+**Issue:** [pwndbg/pwndbg Issue Catalog: "add color parameter validation"](https://github.com/pwndbg/pwndbg/issues/2874)  
+**Status:** 🟡 **Phase IV - Awaiting Maintainer Review**  
+**Issue Link:** [pwndbg/pwndbg#2874](https://github.com/pwndbg/pwndbg/issues/2874)  
+**PR Link:** [pwndbg/pwndbg#4016](https://github.com/pwndbg/pwndbg/pull/4016)  
+
+---
+
+## Why I Chose This Issue
+
+I chose this issue in the `pwndbg` repository because it targets theme parameter handling and error safety. In debugging environments, having a robust configuration system is highly desirable. If users can set invalid or typo-ridden values for UI parameters, they may encounter runtime crashes at display time, interrupting their analysis or reverse-engineering flow.
+
+Furthermore, this issue deals directly with GDB's Python parameter-binding layer (`gdb.Parameter`). Addressing it provides deeper insights into how plugins integrate with GDB's interactive shell, manage configuration state, and handle dynamic triggers.
+
+---
+
+## Understanding the Issue
+
+### Problem Description
+
+When users customize the color theme in `pwndbg` (for example, setting parameters like `telescope-register-color` via `set telescope-register-color <value>`), there was no active input validation on the input value. GDB successfully accepts arbitrary string values, including typos like `meow` or invalid types like `ansi_escape_8bit`.
+
+The system only attempts to resolve these values to color/style formatting functions when rendering output in the console. When an invalid name is encountered during output colorization, `pwndbg` threw unhandled exceptions:
+- **`KeyError` (e.g. `'meow'`)** when an arbitrary unrecognized string was set.
+- **`TypeError` (e.g. `'re.Pattern' object is not callable`)** when a valid attribute of the `color` module that is not a callable formatting function (like the regex pattern `ansi_escape_8bit`) was selected.
+
+These runtime exceptions crashed the active screen rendering, causing an unpleasant debugging experience.
+
+### Expected Behavior
+
+- Custom theme color parameters should be validated immediately when the user attempts to set them in GDB.
+- Setting an invalid value (e.g., `set telescope-register-color meow`) should raise an informative GDB error describing the typo and listing the valid choices.
+- The parameter value should not be updated to the invalid input but instead roll back to its previous valid state.
+
+### Current Behavior
+
+GDB accepts invalid parameters without errors:
+```gdb
+pwndbg> set telescope-register-color meow
+```
+Then, during subsequent command execution (like `telescope`), `pwndbg` crashes with a python traceback:
+```
+KeyError: 'meow'
+```
+
+### Affected Components
+
+- [pwndbg/color/\_\_init\_\_.py](file:///home/ronin/Projects/pwndbg/pwndbg/color/__init__.py): Specifically `generate_color_function()`, which processes the parameter and constructs the composite color formatting wrapper.
+- [pwndbg/gdblib/config.py](file:///home/ronin/Projects/pwndbg/pwndbg/gdblib/config.py): Specifically the `get_set_string()` method of the `Parameter` class, which handles GDB's `set <param>` command and executes the parameter update triggers.
+
+---
+
+## Reproduction Process
+
+### Environment Setup
+
+Set up a local clone of `pwndbg` and configure development dependencies:
+```bash
+git clone https://github.com/pwndbg/pwndbg.git /home/ronin/Projects/pwndbg
+cd /home/ronin/Projects/pwndbg
+./setup-dev.sh
+```
+
+### Steps to Reproduce
+
+1. Launch GDB: `gdb`
+2. Attempt to set an invalid color value:
+   ```gdb
+   pwndbg> set telescope-register-color meow
+   ```
+3. Run a command that prints register telescope values (e.g. `entry` or `telescope`).
+4. **Observed result:** A Python traceback is shown with `KeyError: 'meow'`.
+
+---
+
+## Solution Approach
+
+### Analysis
+
+The root cause of the bug is two-fold:
+1. **Lack of validation inside color generator**: `generate_color_function()` parsed the comma-separated config string but did not actively validate that each split item matches a valid color/style function. Assertions (`assert fn is not None`) were used, but assertions are stripped when Python runs under optimization mode (`-O`), resulting in `None` being treated as a formatting callable.
+2. **Lack of rollback on GDB parameter changes**: In `Parameter.get_set_string()`, if an update trigger failed due to validation issues, GDB had already updated the parameter value, leaving the configuration in an inconsistent, broken state.
+
+### Proposed Solution
+
+- **Explicit Validation**: Update `generate_color_function()` to match inputs against a hardcoded list of valid styles/colors. If an invalid choice is present, raise a descriptive `ValueError`.
+- **Graceful Rollback**: Update `Parameter.get_set_string()` to catch any exception raised during trigger execution. On error, restore both the internal config value and GDB's parameter value to the previous functional value, re-trigger the configuration callbacks to restore sanity, and raise a clean `gdb.GdbError` to output a clean message to the terminal without a Python traceback.
+
+### Implementation Plan
+
+1. **Verify list of valid colors**: Map out all built-in color/style functions defined in `pwndbg/color/__init__.py`.
+2. **Enhance Color Function Generation**: Inject a strict membership and callability check in `generate_color_function()` that raises `ValueError`.
+3. **Enhance GDB parameter setter**: Wrap trigger executions in `Parameter.get_set_string()` with a rollback handler and raise `gdb.GdbError`.
+4. **Add unit tests**: Write unit tests in `tests/unit_tests/test_color_validation.py` to assert correct behavior.
+
+---
+
+## Testing Strategy
+
+### Unit & Integration Testing
+
+We added a new unit test suite `tests/unit_tests/test_color_validation.py` using `pytest`. The tests assert:
+- Correct composition of valid colors (`red`).
+- Multiple style/color composition (`bold,red`).
+- Rejection of invalid colors (`meow`).
+- Error messages listing valid choices on invalid input.
+- Robust handling of leading/trailing whitespace and empty items.
+
+Run the test suite using:
+```bash
+./unit-tests.sh
+```
+**Results:** All 74 tests passed successfully, including the 3 new validation test cases.
+
+### Manual & Validation Steps
+
+1. Launch GDB.
+2. Run `set telescope-register-color meow`.
+3. **Observed result:** GDB outputs a clean error:
+   ```
+   Error: Invalid color/style 'meow'. Valid choices are: black, blue, bold, cyan, foreground, gray, green, grey, light_blue, light_cyan, light_gray, light_grey, light_green, light_purple, light_red, light_yellow, none, normal, purple, red, underline, white, yellow
+   ```
+4. Verify the parameter value has rolled back to its previous state:
+   ```gdb
+   pwndbg> show telescope-register-color
+   ```
+   *Output matches previous valid setting.*
+
+---
+
+## Implementation Notes
+
+### Work Completed
+
+- Refactored `pwndbg.color.generate_color_function` to enforce valid parameters.
+- Overhauled GDB `Parameter.get_set_string` to support safe rollback.
+- Wrote and validated the pytest suite in `tests/unit_tests/test_color_validation.py`.
+- Pushed branch and opened PR #4016 on the upstream `pwndbg/pwndbg` repository.
+
+### Challenges Faced
+
+The primary challenge was managing GDB parameter synchronization. Since GDB's internal `gdb.Parameter` class mutates its `value` before calling Python's `get_set_string()`, a simple raise would leave the parameter corrupted. Introducing a dual rollback (`self.value = old_value` and `self.param.value = old_value`) followed by a clean re-trigger execution resolved the out-of-sync state perfectly.
+
+---
+
+## Maintainer Feedback Log
+
+- **Status:** Open, awaiting review.
+- **Reviewers:** None assigned yet.
+
+---
+
+## Learnings & Reflections
+
+### Technical Skills Gained
+
+- Gained deep familiarity with `gdb.Parameter` lifecycle, mutation states, and rollback procedures.
+- Learned how to write robust input validation libraries in highly optimized environments where assertions are bypassed.
+- Mastered advanced terminal formatting techniques and nested ANSI color code sequences.
+
+### Open Source Process Learnings
+
+- Learned how to isolate upstream bugs, locate historical discussions, and deliver clean, self-contained feature fixes.
+- Realized the importance of matching project-specific base branches (e.g. using `dev` instead of `main` for PR submissions).
+- Standardized git linear history practices by conforming to Developer Certificate of Origin (DCO) sign-off rules.
+
+### Collaboration & AI Tool Usage
+
+- Collaborated with AI to model GDB parameter setter failure pathways and design the dual value-revert rollback pattern.
+- Leveraged AI to construct robust unit test asserts that match `pwndbg`'s exact composite ANSI escape sequence structures.
+
