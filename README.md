@@ -499,22 +499,36 @@ The root cause of the bug is two-fold:
 
 ---
 
+---
+
 ## Testing Strategy
 
 ### Unit & Integration Testing
 
-We added a new unit test suite `tests/unit_tests/test_color_validation.py` using `pytest`. The tests assert:
-- Correct composition of valid colors (`red`).
-- Multiple style/color composition (`bold,red`).
-- Rejection of invalid colors (`meow`).
-- Error messages listing valid choices on invalid input.
-- Robust handling of leading/trailing whitespace and empty items.
+We added both a pure-Python unit test suite and a full GDB integration test suite:
+- **Unit Tests (`tests/unit_tests/test_color_validation.py`):**
+  - Correct composition of valid colors (`red`).
+  - Multiple style/color composition (`bold,red`).
+  - Rejection of invalid colors (`meow`).
+  - Error messages listing valid choices on invalid input.
+  - Robust handling of leading/trailing whitespace and empty items.
+- **GDB Integration Tests (`tests/library/dbg/tests/test_command_config.py`):**
+  - Added `test_config_color_validation` to run inside GDB.
+  - Verifies that running `set telescope-register-color red,bold` applies the value.
+  - Verifies that running `set telescope-register-color meow` correctly raises a GDB-level `GdbError` containing the list of valid choices.
+  - Verifies that on validation error, the parameter's internal and GDB states automatically roll back to the last valid configuration.
 
-Run the test suite using:
+Run unit tests:
 ```bash
 ./unit-tests.sh
 ```
-**Results:** All 74 tests passed successfully, including the 3 new validation test cases.
+
+Run GDB integration tests:
+```bash
+./tests.sh -g dbg -d gdb test_config_color_validation
+```
+
+**Results:** All unit and integration test cases pass successfully.
 
 ### Manual & Validation Steps
 
@@ -538,19 +552,28 @@ Run the test suite using:
 
 - Refactored `pwndbg.color.generate_color_function` to enforce valid parameters.
 - Overhauled GDB `Parameter.get_set_string` to support safe rollback.
+- Implemented `Parameter.validate` abstraction and overrode it in `ColorParameter` to check color choices on parameter set.
 - Wrote and validated the pytest suite in `tests/unit_tests/test_color_validation.py`.
+- Wrote GDB-backed integration tests in `tests/library/dbg/tests/test_command_config.py`.
 - Pushed branch and opened PR #4016 on the upstream `pwndbg/pwndbg` repository.
 
 ### Challenges Faced
 
-The primary challenge was managing GDB parameter synchronization. Since GDB's internal `gdb.Parameter` class mutates its `value` before calling Python's `get_set_string()`, a simple raise would leave the parameter corrupted. Introducing a dual rollback (`self.value = old_value` and `self.param.value = old_value`) followed by a clean re-trigger execution resolved the out-of-sync state perfectly.
+The primary challenge was managing GDB parameter synchronization. Since GDB's internal `gdb.Parameter` class mutates its `value` before calling Python's `get_set_string()`, a simple raise would leave the parameter corrupted. Introducing a dual rollback (`self.value = old_value` and `self.param.value = old_value`) followed by a clean re-trigger execution resolved the out-of-sync state.
 
 ---
 
 ## Maintainer Feedback Log
 
-- **Status:** Open, awaiting review.
-- **Reviewers:** None assigned yet.
+- **Status:** 🟢 **Changes Addressed & Force-Pushed — Awaiting Final Review**
+- **Reviewer:** `@k4lizen` (Changes requested)
+- **Feedback & Resolutions:**
+  1. *Blocker 1 (Avoid Hardcoding `valid_colors`):* "this must be tied to the actual color definitions otherwise it may run out of drift"
+     - **Resolution:** Refactored `pwndbg/color/__init__.py` to dynamically query and build the list of valid color formatting functions directly from the module's `globals()` namespace at runtime, completely eliminating hardcoding and preventing future drift.
+  2. *Blocker 2 (Refine Exception Silencing):* "i also am not a complete fan of us eating the exception traceback in all cases, ideally we would eat it just in these user-error cases like color validation"
+     - **Resolution:** Added a dedicated `validate()` hook on parameters and restricted the `try...except` block in `gdblib/config.py:get_set_string` to specifically catch `ValueError` (which represents user-error inputs). Any unexpected python programming bugs or exceptions thrown by configuration triggers will now propagate tracebacks normally.
+  3. *Blocker 3 (Relocate Tests to integration suite):* "the more tricky behaviour is the gdb color setting config shenanigens, not raising an exception, this should be a tests/library/dbg/ test"
+     - **Resolution:** Added `test_config_color_validation` to `tests/library/dbg/tests/test_command_config.py` using `pwndbg`'s integration test controller. It verifies setting valid values, setting invalid values, asserting on the raised exception, and verifying proper rollback behavior within GDB.
 
 ---
 
@@ -561,12 +584,14 @@ The primary challenge was managing GDB parameter synchronization. Since GDB's in
 - Gained deep familiarity with `gdb.Parameter` lifecycle, mutation states, and rollback procedures.
 - Learned how to write robust input validation libraries in highly optimized environments where assertions are bypassed.
 - Mastered advanced terminal formatting techniques and nested ANSI color code sequences.
+- Gained experience using GDB-backed integration testing frameworks to test real-time command line interactions and states.
 
 ### Open Source Process Learnings
 
 - Learned how to isolate upstream bugs, locate historical discussions, and deliver clean, self-contained feature fixes.
 - Realized the importance of matching project-specific base branches (e.g. using `dev` instead of `main` for PR submissions).
 - Standardized git linear history practices by conforming to Developer Certificate of Origin (DCO) sign-off rules.
+- Learned the value of upstream review iteration, refining original implementations based on maintainer preferences (e.g., dynamic discovery vs. hardcoding, selective exception capturing vs. broad silencing).
 
 ### Collaboration & AI Tool Usage
 
