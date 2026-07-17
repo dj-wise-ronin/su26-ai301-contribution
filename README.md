@@ -613,7 +613,7 @@ To ensure success within this constrained timeline, we have audited our active p
 | **1** | `pwndbg/pwndbg` | `feat(windbg): add optional count/length parameter to dds/dps` | ✅ **Merged** 🚀 | Completed & Merged into upstream `dev` branch. |
 | **2** | `ossf/cve-bin-tool` | `test: improve performance on slowest tests` | 🟡 **Awaiting Review** | Lockfile optimizations completed. Pushed to remote branch and currently in maintainer review queue. |
 | **3** | `pwndbg/pwndbg` | `add color parameter validation` (Issue #2874) | ⚠️ **On Hold / Deferred** | Pushed to PR #4016. Standardized GDB-REPL validation but deferred due to remote GDB test harness and platform-specific CI friction. Placed on hold to focus resources on guaranteed merges. |
-| **4** | `ossf/cve-bin-tool` | `test: modernize parametrize calls to clear pytest 10.0+ warnings` | 🟡 **PR Opened** | Converted generator comprehensions to list comprehensions; PR opened at [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842). |
+| **4** | `ossf/cve-bin-tool` | `test: modernize parametrize calls to clear pytest 10.0+ warnings` | ✅ **Merged** 🚀 | Converted generator comprehensions to list comprehensions; merged at [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842). |
 
 ---
 
@@ -625,6 +625,8 @@ Below are the vetted candidate issues selected from the master tracking sheet th
 * **Repository:** `ossf/cve-bin-tool`
 * **Issue Title:** `test: improve performance on our slowest tests` (Test Suite Health Track)
 * **Complexity:** Easy (0% risk of runtime regression)
+* **Status:** ✅ **Merged** 🚀
+* **Pull Request:** [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842)
 * **Scope & Discovery:**
   Running `pytest` locally on `test/test_scanner.py` reveals active `PytestRemovedIn10Warning` deprecations regarding the use of parenthesized generator comprehensions inside `@pytest.mark.parametrize` decorators (deprecating "non-Collection iterables"). 
 * **The Plan:**
