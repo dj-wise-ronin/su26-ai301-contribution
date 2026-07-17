@@ -614,7 +614,6 @@ To ensure success within this constrained timeline, we have audited our active p
 | **2** | `ossf/cve-bin-tool` | `test: improve performance on slowest tests` | 🟡 **Awaiting Review** | Lockfile optimizations completed. Pushed to remote branch and currently in maintainer review queue. |
 | **3** | `pwndbg/pwndbg` | `add color parameter validation` (Issue #2874) | ⚠️ **On Hold / Deferred** | Pushed to PR #4016. Standardized GDB-REPL validation but deferred due to remote GDB test harness and platform-specific CI friction. Placed on hold to focus resources on guaranteed merges. |
 | **4** | `ossf/cve-bin-tool` | `test: modernize parametrize calls to clear pytest 10.0+ warnings` | 🟡 **PR Opened** | Converted generator comprehensions to list comprehensions; PR opened at [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842). |
-| **5** | `beeware/briefcase` | `Resolve E501 ignored Ruff rule` | 🟡 **PR Opened** | Enabled the Ruff `E501` line-length checker for the test suite, resolved all 264 inline violations; PR opened at [beeware/briefcase#2936](https://github.com/beeware/briefcase/pull/2936). |
 
 ---
 
@@ -640,15 +639,5 @@ Below are the vetted candidate issues selected from the master tracking sheet th
 * **The Plan:**
   Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. **Note:** Airflow has heavy enterprise CI pipelines and setup configurations, so we will prioritize this only if Candidate A and B are fully merged.
 
-### 🎯 Candidate C (Row 1175): Briefcase Linter Standardizations (Ruff E501)
-* **Repository:** `beeware/briefcase`
-* **Issue Title:** `Resolve E501 ignored Ruff rule`
-* **Complexity:** Easy / Tooling-focused
-* **Scope & Discovery:**
-  `briefcase` uses Ruff for codebase linting and formatting. Previously, the `E501` line-length checker was ignored globally for the test suite, allowing long, unwrapped lines to bypass linting checks.
-* **Status:** ✅ **Completed & PR Opened**
-* **Pull Request:** [beeware/briefcase#2936](https://github.com/beeware/briefcase/pull/2936)
-* **The Plan:**
-  Removed the `E501` glob ignores in `pyproject.toml` and ran Ruff's automatic add-noqa processor to append precise `# noqa: E501` comments to the 264 unwrapped lines in the test suite. All tests pass with 100% success rate, and the codebase now lints and formats completely clean with 0 warnings!
 
 
