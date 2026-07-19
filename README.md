@@ -404,9 +404,9 @@ I optimized the test runner performance by cleaning up the dummy lockfiles in `t
 **Contribution Number:** 3  
 **Student:** DeAngelo Jackson-Adams  
 **Issue:** [pwndbg/pwndbg Issue Catalog: "add color parameter validation"](https://github.com/pwndbg/pwndbg/issues/2874)  
-**Status:** 🟡 **Phase IV - Awaiting Maintainer Review**  
+**Status:** ✅ **Phase IV Complete — PR Merged** 🚀 (Merged via PR #4033 as co-author)  
 **Issue Link:** [pwndbg/pwndbg#2874](https://github.com/pwndbg/pwndbg/issues/2874)  
-**PR Link:** [pwndbg/pwndbg#4016](https://github.com/pwndbg/pwndbg/pull/4016)  
+**PR Link:** [pwndbg/pwndbg#4033](https://github.com/pwndbg/pwndbg/pull/4033) (superseding [pwndbg/pwndbg#4016](https://github.com/pwndbg/pwndbg/pull/4016))    
 
 ---
 
@@ -565,8 +565,8 @@ The primary challenge was managing GDB parameter synchronization. Since GDB's in
 
 ## Maintainer Feedback Log
 
-- **Status:** 🟢 **Changes Addressed & Force-Pushed — Awaiting Final Review**
-- **Reviewer:** `@k4lizen` (Changes requested)
+- **Status:** ✅ **Merged** 🚀 (July 19, 2026)
+- **Reviewer:** `@k4lizen`
 - **Feedback & Resolutions:**
   1. *Blocker 1 (Avoid Hardcoding `valid_colors`):* "this must be tied to the actual color definitions otherwise it may run out of drift"
      - **Resolution:** Refactored `pwndbg/color/__init__.py` to dynamically query and build the list of valid color formatting functions directly from the module's `globals()` namespace at runtime, completely eliminating hardcoding and preventing future drift.
@@ -574,6 +574,7 @@ The primary challenge was managing GDB parameter synchronization. Since GDB's in
      - **Resolution:** Added a dedicated `validate()` hook on parameters and restricted the `try...except` block in `gdblib/config.py:get_set_string` to specifically catch `ValueError` (which represents user-error inputs). Any unexpected python programming bugs or exceptions thrown by configuration triggers will now propagate tracebacks normally.
   3. *Blocker 3 (Relocate Tests to integration suite):* "the more tricky behaviour is the gdb color setting config shenanigens, not raising an exception, this should be a tests/library/dbg/ test"
      - **Resolution:** Added `test_config_color_validation` to `tests/library/dbg/tests/test_command_config.py` using `pwndbg`'s integration test controller. It verifies setting valid values, setting invalid values, asserting on the raised exception, and verifying proper rollback behavior within GDB.
+  4. *PR Closure and Redirection:* Reviewer `@k4lizen` closed `#4016` to split and merge the changes cleanly in a new PR `#4033` focused specifically on color validation. The merged PR `#4033` co-authors `dj-wise-ronin` and resolves Issue `#2874`.
 
 ---
 
@@ -600,6 +601,46 @@ The primary challenge was managing GDB parameter synchronization. Since GDB's in
 
 ---
 
+# Contribution 4 (Cycle 4) — OSSF cve-bin-tool
+
+**Contribution Number:** 4  
+**Student:** DeAngelo Jackson-Adams  
+**Issue:** [ossf/cve-bin-tool Issue: "test: modernize parametrize calls to clear pytest 10.0+ warnings"](https://github.com/ossf/cve-bin-tool/pull/5842)  
+**Status:** ✅ **Phase IV Complete — PR Merged** 🚀  
+**PR Link:** [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842)  
+
+### Problem Description
+Currently, when running tests, `pytest` outputs `PytestRemovedIn10Warning` deprecation warnings because the `@pytest.mark.parametrize` calls inside `test/test_scanner.py` pass parenthesized generator comprehensions (non-Collection iterables) as argument values. Pytest 10.0+ deprecates the use of non-Collection iterables to ensure test configurations are reusable and partitionable across runners.
+
+### Solution
+Converted the parenthesized generator comprehensions inside `@pytest.mark.parametrize` decorators in `test/test_scanner.py` to bracketed list comprehensions `[...]` (valid collection types). This completely silences the deprecation warnings, secures future-compatibility with `pytest 10.0+`, and ensures clean local and remote test execution.
+
+---
+
+# Contribution 5 (Cycle 4) — apache/airflow
+
+**Contribution Number:** 5  
+**Student:** DeAngelo Jackson-Adams  
+**Issue:** [apache/airflow Issue: "Connection port field does not validate that the value is a valid port number"](https://github.com/apache/airflow/pull/70052)  
+**Status:** 🟡 **Phase IV - Under Review**  
+**PR Link:** [apache/airflow#70052](https://github.com/apache/airflow/pull/70052)  
+
+### Problem Description
+Airflow's connection models accept integer values for the `port` field but do not enforce that the value is a valid network port in the range `[1, 65535]`. Users can submit invalid or out-of-range port values (negative or >65535) via REST API, URI parsing, or DB creation, causing failures at task run time.
+
+### Solution
+Added input validation logic at three layers:
+1. **SQLAlchemy Connection model** validation via `@validates("port")` to ensure port numbers assigned are integers between 1 and 65535.
+2. **Task SDK Connection model** validation in `__attrs_post_init__` to enforce range limits and format validation during standard instantiation and URI parsing.
+3. **Pydantic API datamodel** validation using `Field(ge=1, le=65535)` on the REST API gateway connections schema.
+
+### Maintainer Feedback Log
+- **Reviewer:** `@SameerMesiah97`
+- **Feedback:** "I have left comments on the test. Also, I noticed the Task SDK and SQLAlchemy models now contain identical port parsing/validation logic. Is there an opportunity to share the implementation?"
+- **Status:** Open. Awaiting user updates to address the reviewer's feedback.
+
+---
+
 # 🗺️ CodePath DTS AI301 — 3-Week Sprint Portfolio Roadmap
 
 As we enter the final 3 weeks of the semester, our primary objective is to maximize the count of **completed and merged issues** (target: 3 to 5 fully merged contributions) while aggressively mitigating risk and pipeline friction. 
@@ -612,8 +653,9 @@ To ensure success within this constrained timeline, we have audited our active p
 | :---: | :--- | :--- | :---: | :--- |
 | **1** | `pwndbg/pwndbg` | `feat(windbg): add optional count/length parameter to dds/dps` | ✅ **Merged** 🚀 | Completed & Merged into upstream `dev` branch. |
 | **2** | `ossf/cve-bin-tool` | `test: improve performance on slowest tests` | 🟡 **Awaiting Review** | Lockfile optimizations completed. Pushed to remote branch and currently in maintainer review queue. |
-| **3** | `pwndbg/pwndbg` | `add color parameter validation` (Issue #2874) | ⚠️ **On Hold / Deferred** | Pushed to PR #4016. Standardized GDB-REPL validation but deferred due to remote GDB test harness and platform-specific CI friction. Placed on hold to focus resources on guaranteed merges. |
+| **3** | `pwndbg/pwndbg` | `add color parameter validation` (Issue #2874) | ✅ **Merged** 🚀 | Closed `#4016` in favor of `#4033` which merged as co-authored on July 19, 2026. |
 | **4** | `ossf/cve-bin-tool` | `test: modernize parametrize calls to clear pytest 10.0+ warnings` | ✅ **Merged** 🚀 | Converted generator comprehensions to list comprehensions; merged at [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842). |
+| **5** | `apache/airflow` | `Validate connection port is a valid network port number` | 🟡 **Under Review** | PR #70052 open. Awaiting changes based on reviewer feedback from `@SameerMesiah97`. |
 
 ---
 
@@ -636,10 +678,12 @@ Below are the vetted candidate issues selected from the master tracking sheet th
 * **Repository:** `apache/airflow`
 * **Issue Title:** `Connection port field does not validate that the value is a valid port number`
 * **Complexity:** Easy
+* **Status:** 🟡 **Under Review**
+* **Pull Request:** [apache/airflow#70052](https://github.com/apache/airflow/pull/70052)
 * **Scope & Discovery:**
   Airflow's connection manager currently fails to strictly validate that the user-specified network port falls within the valid standard TCP/UDP range (`1 <= port <= 65535`). Passing negative integers or ports exceeding `65535` should immediately raise a clean validation error on input.
 * **The Plan:**
-  Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. **Note:** Airflow has heavy enterprise CI pipelines and setup configurations, so we will prioritize this only if Candidate A and B are fully merged.
+  Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. Awaiting reviewer feedback changes to share parsing logic between Task SDK and SQLAlchemy models.
 
 
 
