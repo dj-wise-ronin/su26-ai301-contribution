@@ -629,15 +629,16 @@ Converted the parenthesized generator comprehensions inside `@pytest.mark.parame
 Airflow's connection models accept integer values for the `port` field but do not enforce that the value is a valid network port in the range `[1, 65535]`. Users can submit invalid or out-of-range port values (negative or >65535) via REST API, URI parsing, or DB creation, causing failures at task run time.
 
 ### Solution
-Added input validation logic at three layers:
-1. **SQLAlchemy Connection model** validation via `@validates("port")` to ensure port numbers assigned are integers between 1 and 65535.
-2. **Task SDK Connection model** validation in `__attrs_post_init__` to enforce range limits and format validation during standard instantiation and URI parsing.
-3. **Pydantic API datamodel** validation using `Field(ge=1, le=65535)` on the REST API gateway connections schema.
+Added shared input validation logic across components:
+1. **Shared Port Validator:** Defined a central `parse_and_validate_port` utility function inside the shared configuration package (`airflow_shared.configuration.connection`) to check and convert port integers.
+2. **SQLAlchemy Connection Model:** Refactored core Connection validates method to delegate to the shared validator.
+3. **Task SDK Connection Model:** Refactored post-initialization parsing in the Task SDK to use the shared validator.
+4. **Pydantic API Datamodel:** Enforces range requirements using `Field(ge=1, le=65535)` on connection input schema.
 
 ### Maintainer Feedback Log
 - **Reviewer:** `@SameerMesiah97`
 - **Feedback:** "I have left comments on the test. Also, I noticed the Task SDK and SQLAlchemy models now contain identical port parsing/validation logic. Is there an opportunity to share the implementation?"
-- **Status:** Open. Awaiting user updates to address the reviewer's feedback.
+- **Status:** 🟢 **Addressed & Pushed** — Refactored to centralize port parsing/validation under the `apache-airflow-shared-configuration` package, updated core and task-sdk models to import and delegate to the shared validator, verified all test suites passed cleanly, and replied to the review on GitHub.
 
 ---
 
@@ -683,7 +684,7 @@ Below are the vetted candidate issues selected from the master tracking sheet th
 * **Scope & Discovery:**
   Airflow's connection manager currently fails to strictly validate that the user-specified network port falls within the valid standard TCP/UDP range (`1 <= port <= 65535`). Passing negative integers or ports exceeding `65535` should immediately raise a clean validation error on input.
 * **The Plan:**
-  Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. Awaiting reviewer feedback changes to share parsing logic between Task SDK and SQLAlchemy models.
+  Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. Pushed changes to centralize validation logic within the `apache-airflow-shared-configuration` package and shared between models, with all unit tests passing.
 
 
 
