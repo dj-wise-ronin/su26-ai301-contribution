@@ -622,8 +622,8 @@ Converted the parenthesized generator comprehensions inside `@pytest.mark.parame
 **Contribution Number:** 5  
 **Student:** DeAngelo Jackson-Adams  
 **Issue:** [apache/airflow Issue: "Connection port field does not validate that the value is a valid port number"](https://github.com/apache/airflow/pull/70052)  
-**Status:** 🟡 **Phase IV - Under Review**  
-**PR Link:** [apache/airflow#70052](https://github.com/apache/airflow/pull/70052)  
+**Status:** 🔴 **Closed — Needs Resubmission**  
+**PR Link:** [apache/airflow#70052](https://github.com/apache/airflow/pull/70052) *(closed July 21, 2026)*  
 
 ### Problem Description
 Airflow's connection models accept integer values for the `port` field but do not enforce that the value is a valid network port in the range `[1, 65535]`. Users can submit invalid or out-of-range port values (negative or >65535) via REST API, URI parsing, or DB creation, causing failures at task run time.
@@ -639,6 +639,9 @@ Added shared input validation logic across components:
 - **Reviewer:** `@SameerMesiah97`
 - **Feedback:** "I have left comments on the test. Also, I noticed the Task SDK and SQLAlchemy models now contain identical port parsing/validation logic. Is there an opportunity to share the implementation?"
 - **Status:** 🟢 **Addressed & Pushed** — Refactored to centralize port parsing/validation under the `apache-airflow-shared-configuration` package, updated core and task-sdk models to import and delegate to the shared validator, verified all test suites passed cleanly, and replied to the review on GitHub.
+- **Committer Action:** `@kaxil` (ASF committer) closed PR #70052 on July 21, 2026 citing: *"PR Guidelines haven't been followed."* No further review comments were left specifying which guideline was violated.
+- **Root Cause:** The branch fell behind `upstream/main` after PR [#70087](https://github.com/apache/airflow/pull/70087) landed and bumped `uv.lock`. The automated rebase nudge from `github-actions` was not acted on before the committer closed the PR.
+- **Next Steps:** Rebase branch against current `upstream/main`, regenerate `uv.lock`, audit the [Airflow PR checklist](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst) for any missed requirements, and reopen a clean PR.
 
 ---
 
@@ -656,7 +659,7 @@ To ensure success within this constrained timeline, we have audited our active p
 | **2** | `ossf/cve-bin-tool` | `test: improve performance on slowest tests` | 🟡 **Awaiting Review** | Lockfile optimizations completed. Pushed to remote branch and currently in maintainer review queue. |
 | **3** | `pwndbg/pwndbg` | `add color parameter validation` (Issue #2874) | ✅ **Merged** 🚀 | Closed `#4016` in favor of `#4033` which merged as co-authored on July 19, 2026. |
 | **4** | `ossf/cve-bin-tool` | `test: modernize parametrize calls to clear pytest 10.0+ warnings` | ✅ **Merged** 🚀 | Converted generator comprehensions to list comprehensions; merged at [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842). |
-| **5** | `apache/airflow` | `Validate connection port is a valid network port number` | 🟡 **Under Review** | PR #70052 open. Awaiting changes based on reviewer feedback from `@SameerMesiah97`. |
+| **5** | `apache/airflow` | `Validate connection port is a valid network port number` | 🔴 **Closed — Needs Resubmit** | PR #70052 closed by committer `@kaxil` ("PR Guidelines haven't been followed"). Branch needs rebase against upstream `main` + `uv lock` regeneration before resubmission. |
 | **6** | `pwndbg/pwndbg` | `feat: Add $heap(offset) GDB convenience function` (Issue #2849) | 🔵 **Phase II — PR Open** | Branch pushed; [PR #4048](https://github.com/pwndbg/pwndbg/pull/4048) submitted to upstream `dev`. Implements `$heap()`, `$heap(offset)` to simplify ASLR-aware heap navigation. |
 
 ---
@@ -680,12 +683,12 @@ Below are the vetted candidate issues selected from the master tracking sheet th
 * **Repository:** `apache/airflow`
 * **Issue Title:** `Connection port field does not validate that the value is a valid port number`
 * **Complexity:** Easy
-* **Status:** 🟡 **Under Review**
-* **Pull Request:** [apache/airflow#70052](https://github.com/apache/airflow/pull/70052)
+* **Status:** 🔴 **Closed — Needs Resubmission**
+* **Pull Request:** [apache/airflow#70052](https://github.com/apache/airflow/pull/70052) *(closed July 21, 2026)*
 * **Scope & Discovery:**
   Airflow's connection manager currently fails to strictly validate that the user-specified network port falls within the valid standard TCP/UDP range (`1 <= port <= 65535`). Passing negative integers or ports exceeding `65535` should immediately raise a clean validation error on input.
 * **The Plan:**
-  Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. Pushed changes to centralize validation logic within the `apache-airflow-shared-configuration` package and shared between models, with all unit tests passing.
+  Rebase `fix-connection-port-validation` against upstream `main`, regenerate `uv.lock`, and resubmit a clean PR that addresses the Airflow contribution guidelines. Shared validation logic across `airflow-core` and `task-sdk` is already implemented.
 
 ---
 
