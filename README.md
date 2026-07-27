@@ -657,6 +657,7 @@ To ensure success within this constrained timeline, we have audited our active p
 | **3** | `pwndbg/pwndbg` | `add color parameter validation` (Issue #2874) | ✅ **Merged** 🚀 | Closed `#4016` in favor of `#4033` which merged as co-authored on July 19, 2026. |
 | **4** | `ossf/cve-bin-tool` | `test: modernize parametrize calls to clear pytest 10.0+ warnings` | ✅ **Merged** 🚀 | Converted generator comprehensions to list comprehensions; merged at [ossf/cve-bin-tool#5842](https://github.com/ossf/cve-bin-tool/pull/5842). |
 | **5** | `apache/airflow` | `Validate connection port is a valid network port number` | 🟡 **Under Review** | PR #70052 open. Awaiting changes based on reviewer feedback from `@SameerMesiah97`. |
+| **6** | `pwndbg/pwndbg` | `feat: Add $heap(offset) GDB convenience function` (Issue #2849) | 🔵 **Phase II — PR Open** | Branch pushed; [PR #4048](https://github.com/pwndbg/pwndbg/pull/4048) submitted to upstream `dev`. Implements `$heap()`, `$heap(offset)` to simplify ASLR-aware heap navigation. |
 
 ---
 
@@ -686,5 +687,152 @@ Below are the vetted candidate issues selected from the master tracking sheet th
 * **The Plan:**
   Inject a clean check inside the core `Connection` validator module in Airflow's metadata layer to enforce the numeric boundaries. Pushed changes to centralize validation logic within the `apache-airflow-shared-configuration` package and shared between models, with all unit tests passing.
 
+---
 
+# Contribution 6 (Cycle 5) — pwndbg/pwndbg
+
+**Contribution Number:** 6  
+**Student:** DeAngelo Jackson-Adams  
+**Issue:** [pwndbg/pwndbg Issue #2849: "Add $heap(offset) convenience function"](https://github.com/pwndbg/pwndbg/issues/2849)  
+**Status:** 🔵 **Phase II — PR Open**  
+**PR Link:** [pwndbg/pwndbg#4048](https://github.com/pwndbg/pwndbg/pull/4048)  
+**Branch:** [`feature/issue-2849-heap`](https://github.com/dj-wise-ronin/pwndbg/tree/feature/issue-2849-heap)  
+
+---
+
+## Why I Chose This Issue
+
+After completing the `$heap()` color validation contribution (PR #4033), I continued exploring `pwndbg`'s issue tracker for high-impact, user-facing features. Issue #2849 was filed by maintainer `@peace-maker` and tagged `good first issue` + `help wanted`, specifically requesting GDB convenience functions that mirror GEF's `$_heap()`, `$_stack()`, `$_bss()`, and `$_got()` shortcuts.
+
+This fits perfectly into my systems/debugging focus: ASLR forces users to repeat `p/x $base("heap")+0x10` every debug session. A dedicated `$heap()` function dramatically improves the workflow for exploit developers doing repeated heap layout analysis. It's a high-visibility usability win that directly benefits pwndbg's core audience.
+
+---
+
+## Understanding the Issue
+
+### Problem Description
+
+In `pwndbg`, when debugging a PIE binary under ASLR, the heap base address changes every process launch. The existing workaround is:
+```gdb
+pwndbg> p/x $base("heap")+0x10
+```
+This is verbose and error-prone for repeated use. GEF provides dedicated `$_heap()`, `$_stack()`, `$_bss()`, and `$_got()` shortcut functions; `pwndbg` has no equivalents.
+
+### Expected Behavior
+
+Users should be able to call:
+```gdb
+pwndbg> p $heap()
+$1 = 0x55555555d000
+pwndbg> p $heap(0x20)
+$2 = 0x55555555d020
+```
+This directly resolves the live heap base and applies an optional byte offset, eliminating repetitive `$base("heap")` boilerplate.
+
+### Affected Components
+
+- [`pwndbg/gdblib/functions.py`](https://github.com/pwndbg/pwndbg/blob/dev/pwndbg/gdblib/functions.py): Central registration point for GDB convenience functions via the `@GdbFunction` decorator.
+- [`pwndbg/aglib/heap/ptmalloc.py`](https://github.com/pwndbg/pwndbg/blob/dev/pwndbg/aglib/heap/ptmalloc.py): `get_sbrk_heap_region()` method used to resolve the sbrk heap base address at runtime.
+
+---
+
+## Solution Approach
+
+### Analysis
+
+The `pwndbg/gdblib/functions.py` module defines GDB convenience functions using a `@GdbFunction(only_when_running=True)` decorator pattern that automatically registers a Python function as a callable GDB symbol. The existing `$base()` function uses `pwndbg.aglib.vmmap` to resolve memory regions by name. For `$heap()`, we need to use the heap allocator's own `get_sbrk_heap_region()` method to reliably retrieve the true heap base (sbrk region), which is more accurate than a generic vmmap name match.
+
+### Implementation
+
+Added a `heap(offset)` function in `pwndbg/gdblib/functions.py`:
+
+```python
+@GdbFunction(only_when_running=True)
+def heap(offset: gdb.Value = gdb.Value(0)) -> int:
+    """
+    Get the base address of the heap plus an optional offset.
+
+    Example:
+        pwndbg> p $heap()
+        $1 = 0x55555555d000
+        pwndbg> p $heap(0x20)
+        $2 = 0x55555555d020
+    """
+    import pwndbg.aglib.heap
+
+    allocator = pwndbg.aglib.heap.current
+    if allocator is None or not allocator.is_initialized():
+        raise gdb.GdbError("The heap allocator is not initialized.")
+
+    try:
+        sbrk_region = allocator.get_sbrk_heap_region()
+    except Exception as e:
+        raise gdb.GdbError(f"Could not retrieve sbrk heap region: {e}")
+
+    if sbrk_region is None:
+        raise gdb.GdbError("The heap base address could not be resolved.")
+
+    return sbrk_region.vaddr + int(offset)
+```
+
+Key design decisions:
+- **`only_when_running=True`**: Guards against calling when no inferior is active, producing a clean GDB error rather than a Python traceback.
+- **Graceful error propagation**: All failure paths raise `gdb.GdbError` with descriptive messages, consistent with how other pwndbg functions behave.
+- **`get_sbrk_heap_region()`**: More precise than vmmap name matching — directly queries the ptmalloc allocator's known sbrk region, which is the canonical heap base.
+
+---
+
+## Testing Strategy
+
+### GDB Integration Test (`tests/library/gdb/tests/test_function_heap.py`)
+
+Added a full GDB-backed integration test:
+
+```python
+def test_function_heap(start_binary):
+    start_binary(REFERENCE_BINARY)
+
+    # Force heuristics since libc symbols are missing in test environment
+    gdb.execute("set resolve-heap-via-heuristic force", to_string=True)
+
+    gdb.execute("break breakpoint", to_string=True)
+    gdb.execute("continue", to_string=True)
+
+    # Verify $heap() returns a valid heap address
+    result = gdb.execute("p/x $heap()", to_string=True).strip()
+    assert result.startswith("$1 = 0x")
+
+    # Verify $heap(offset) applies the offset correctly
+    result_offset = gdb.execute("p/x $heap(0x20)", to_string=True).strip()
+    assert result_offset.startswith("$2 = 0x")
+
+    addr1 = int(result.split(" = ")[1], 16)
+    addr2 = int(result_offset.split(" = ")[1], 16)
+    assert addr2 - addr1 == 0x20
+```
+
+Run with:
+```bash
+./tests.sh -g lib -d gdb test_function_heap
+```
+
+**Results:** All assertions pass. `$heap()` returns the correct base, and `$heap(0x20)` returns base + 32 (0x20).
+
+---
+
+## Current Status — Phase II
+
+- ✅ Issue researched and claimed (Issue #2849)
+- ✅ Feature implemented in `pwndbg/gdblib/functions.py`
+- ✅ GDB integration test added in `tests/library/gdb/tests/test_function_heap.py`
+- ✅ Branch `feature/issue-2849-heap` pushed to fork: [dj-wise-ronin/pwndbg](https://github.com/dj-wise-ronin/pwndbg/tree/feature/issue-2849-heap)
+- 🔵 PR submitted to `pwndbg/pwndbg` against `dev` branch — awaiting maintainer review
+
+---
+
+## Learnings So Far
+
+- Deepened understanding of `pwndbg`'s ptmalloc heap allocator abstraction layer and how `get_sbrk_heap_region()` exposes the live heap base to Python tooling.
+- Learned to integrate `only_when_running=True` GDB guard patterns to prevent hard crashes when calling functions without an active inferior.
+- Practiced matching the GDB integration test patterns established by existing `test_function_base.py` tests in the repository.
 
